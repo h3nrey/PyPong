@@ -1,7 +1,8 @@
 import pygame
 import math
 from sys import exit;
-
+from random import choice
+pygame.init();
 W = 800;
 H = 500;
 screen = pygame.display.set_mode((W, H));
@@ -10,6 +11,12 @@ screen.fill("black");
 clock = pygame.time.Clock();
 FPS = 60;
 
+def RestartRally(madePoint):
+    paddle.sprites()[madePoint].score += 1;
+    
+    for p in paddle.sprites():
+        p.rect.y = (500 / 2) - 50;
+
 class Ball(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__();
@@ -17,30 +24,111 @@ class Ball(pygame.sprite.Sprite):
         self.image = pygame.Surface((self.w, self.w));
         self.image.fill("white");
         self.rect = self.image.get_rect(center = (W / 2, H/2));
-        self.senseX = 1;
+        self.senseX = choice([1,-1]);
         self.senseY = -1;
-        self.speed = 4;
+        self.speed = (4,4)
     
     def move(self):
-        x = self.rect.x;
+        # x = self.rect.x;
         y = self.rect.y;
         speed = self.speed;
         sense = self.senseX;
 
-        if(x >= 775):
-            self.senseX = -1;
-        elif(x < 0):
-            self.senseX = 1;
         if(y > 475 or y < 0):
             self.senseY *= -1;
-        self.rect.x += speed * sense;
-        self.rect.y += speed * self.senseY;
+        self.rect.x += speed[0] * sense;
+        self.rect.y += speed[1] * self.senseY;
     
-    def update(self):
-        self.move();
+    def CheckCollision(self, paddle):
+        if(pygame.sprite.spritecollide(self,paddle, False)):
+            if(self.senseX == 1):
+                self.senseX = -1;
+            elif(self.senseX == -1):
+                self.senseX = 1;
+            self.speed = (self.speed[0] + 0.2, self.speed[1])
 
+    def CheckEnd(self , callback):
+        x = self.rect.x;
+        madePoint = None
+        
+        if(x >= 775 or x < 0):
+            if(x >= 775):
+                madePoint = 0
+            elif(x < 0):
+                madePoint = 1;
+            self.RestartPos();
+            callback(madePoint);
+    
+    def RestartPos(self):
+        self.rect.x = W / 2;
+        self.rect.y = H / 2;
+        self.senseX = choice([1,-1]);
+        self.speed = (4,4);
+    
+    def update(self, paddle, rallycallback):
+        self.move();
+        self.CheckCollision(paddle);
+        self.CheckEnd(rallycallback);
+
+class Paddle(pygame.sprite.Sprite):
+    def __init__(self, x, type):
+        super().__init__();
+        self.surface = pygame.Surface((25,100));
+        self.surface.fill("white");
+        self.image = self.surface ;
+        self.rect = self.image.get_rect(center = (x,H /2))
+        self.sense = 0;
+        self.speed = 4;
+        self.score = 0;
+        self.type = type;
+
+    def move(self, ballPos):
+        if(self.rect.y > 400): self.rect.y = H - self.rect.height;
+        if(self.rect.y < 0): self.rect.y = 0;
+
+        if(self.type == "player"):
+            self.rect.y += self.speed * self.sense;
+        else:
+            ballSense = 0;
+            if(ballPos > H / 2): ballSense = 1;
+            elif(ballPos < H/2): ballSense = -1;
+            print(ballPos);
+            self.rect.y = ballPos * 0.5
+            # self.rect.y += self.speed * ballSense
+
+    def CheckInput(self, events):
+        for event in events:
+            if(event.type == pygame.KEYDOWN):
+                if(event.key == pygame.K_DOWN):
+                    self.sense = 1;
+                if(event.key == pygame.K_UP):
+                    self.sense = -1;
+            if(event.type == pygame.KEYUP):
+                self.sense = 0;
+    def update(self, events, ballPos):
+        self.CheckInput(events);
+        self.move(ballPos);
+
+class ScoreText(pygame.sprite.Sprite):
+    def __init__(self, x):
+        super().__init__();
+        self.text = "0";
+        self.font = pygame.font.Font("Assets/pixel.ttf", 120);
+        self.image = self.font.render(self.text, False, "#ffffff");
+        self.rect = self.image.get_rect(center = (x,120))
+    def update(self, score):
+        self.text = str(score);
+        self.image = self.font.render(str(score), False, "#ffffff");
 ball = pygame.sprite.GroupSingle();
 ball.add(Ball());
+
+paddle = pygame.sprite.Group();
+paddle.add(Paddle(750, "ai"));
+paddle.add(Paddle(50, "player"));
+
+scoreText = pygame.sprite.Group();
+scoreText.add(ScoreText(200));
+scoreText.add(ScoreText(600));
 
 while True:
     events = pygame.event.get();
@@ -50,9 +138,15 @@ while True:
         if(event.type == pygame.QUIT):
             pygame.quit();
             exit();
-    
-    ball.update();
+    scoreText.draw(screen);
+    scoreText.sprites()[0].update(paddle.sprites()[0].score);
+    scoreText.sprites()[1].update(paddle.sprites()[1].score);
+
+    ball.update(paddle, RestartRally);
     ball.draw(screen);
+
+    paddle.update(events, ball.sprites()[0].rect.y);
+    paddle.draw(screen);
 
     pygame.display.update();
     clock.tick(FPS);
