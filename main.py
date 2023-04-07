@@ -1,7 +1,7 @@
 import pygame
 import math
 from sys import exit;
-from random import choice
+from random import choice, uniform
 pygame.init();
 
 # SETUP
@@ -25,7 +25,6 @@ def RestartRally(madePoint):
     #     paddle.sprites()[1].score += 1;
     # else: paddle.sprites()[0].score += 1;
     paddle.sprites()[madePoint].score += 1;
-    print(f"pos: {paddle.sprites()[madePoint].rect.x} - score: {paddle.sprites()[madePoint].score}")
     
     for p in paddle.sprites():
         p.rect.y = (500 / 2) - 50;
@@ -33,7 +32,6 @@ def RestartRally(madePoint):
 def OnWin():
     global matchFinished;
     matchFinished = True;
-    print(f"{whoWon} won")
 
 def RestartGame():
     global matchFinished, whoWon;
@@ -67,6 +65,8 @@ class Ball(pygame.sprite.Sprite):
         self.senseX = choice([1,-1]);
         self.senseY = -1;
         self.speed = (4,4)
+        self.maxSpeed = 4.00;
+        self.minSpeed = 3.00;
     
     def move(self):
         # x = self.rect.x;
@@ -103,7 +103,9 @@ class Ball(pygame.sprite.Sprite):
         self.rect.x = W / 2;
         self.rect.y = H / 2;
         self.senseX = choice([1,-1]);
-        self.speed = (4,4);
+        spdY = round(uniform(self.minSpeed, self.maxSpeed), 2);
+        spdX = round(uniform(self.minSpeed, self.maxSpeed), 2);
+        self.speed = (spdX, spdY);
     
     def update(self, paddle, rallycallback):
         self.move();
@@ -131,12 +133,16 @@ class Paddle(pygame.sprite.Sprite):
             self.rect.y += self.speed * self.sense;
         else:
             ballSense = 0;
-            if(ballPos == self.rect.y):
+            if(ballPos == self.rect.y or self.rect.y > ballPos + 61 or self.rect.y < ballPos - 61):
                 ballSense = 0;
             else:
-                if(self.rect.y > ballPos): ballSense = 1;
-                elif(self.rect.y < ballPos): ballSense = -1;
-            self.rect.y += self.speed * ballSense
+                if(self.rect.y > ballPos and self.rect.y < ballPos + 60): 
+                    ballSense = 1;
+                    print(f"ai {self.rect.y} < ball {ballPos}")
+                elif(self.rect.y < ballPos and self.rect.y > ballPos - 60): 
+                    ballSense = -1;
+                    print(f"ai {self.rect.y} > ball {ballPos}")
+            self.rect.y += 3 * ballSense
 
     def CheckInput(self, events):
         for event in events:
@@ -150,7 +156,6 @@ class Paddle(pygame.sprite.Sprite):
    
     def CheckScore(self, callback):
         global whoWon;
-        # print(f"score: {self.score} - type: {self.type}");
         if(self.score >= 7):
             whoWon = self.type;
             callback();
