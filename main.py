@@ -3,6 +3,8 @@ import math
 from sys import exit;
 from random import choice
 pygame.init();
+
+# SETUP
 W = 800;
 H = 500;
 screen = pygame.display.set_mode((W, H));
@@ -12,6 +14,12 @@ clock = pygame.time.Clock();
 FPS = 60;
 matchFinished = False;
 whoWon = "";
+
+def DrawWireframe():
+    pygame.draw.line(screen, "white", (W / 2, 0), (W / 2, H), 10)
+    for i in range(30):
+        pygame.draw.line(screen, "black", (0, i * 10 * 2), (W, i * 10 * 2), 10);
+
 def RestartRally(madePoint):
     # if(madePoint == 1):
     #     paddle.sprites()[1].score += 1;
@@ -26,6 +34,29 @@ def OnWin():
     global matchFinished;
     matchFinished = True;
     print(f"{whoWon} won")
+
+def RestartGame():
+    global matchFinished, whoWon;
+
+    matchFinished = False;
+    whoWon = "";
+    for p in paddle.sprites():
+        p.rect.y = (500 / 2) - 50;
+        p.score = 0;
+
+def MatchEnd():
+    textSurf = text.render(f"{whoWon} won", False, "white");
+    textRect = textSurf.get_rect(center = (W / 2, H / 2))
+    pygame.draw.rect(screen, "black", (textRect.x - 10, textRect.y, textRect.width + 20, 50));
+    screen.blit(textSurf, textRect);
+
+    RestartSurf = Restarttext.render(f"press R to restart", False, "white");
+    restartRect = RestartSurf.get_rect(center = (400, 350))
+    pygame.draw.rect(screen, "black", (restartRect.x - 10, restartRect.y - 20, restartRect.width + 20, 50));
+    screen.blit(RestartSurf, restartRect);
+
+
+# SPRITES
 class Ball(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__();
@@ -120,7 +151,7 @@ class Paddle(pygame.sprite.Sprite):
     def CheckScore(self, callback):
         global whoWon;
         # print(f"score: {self.score} - type: {self.type}");
-        if(self.score >= 2):
+        if(self.score >= 7):
             whoWon = self.type;
             callback();
     def update(self, events, ballPos, callback):
@@ -139,6 +170,8 @@ class ScoreText(pygame.sprite.Sprite):
         self.text = str(score);
         self.image = self.font.render(str(score), False, "#ffffff");
 
+
+# OBJECTS
 ball = pygame.sprite.GroupSingle();
 ball.add(Ball());
 
@@ -153,6 +186,8 @@ scoreText.add(ScoreText(600));
 text = pygame.font.Font("Assets/pixel.ttf", 90);
 Restarttext = pygame.font.Font("Assets/pixel.ttf", 40);
 
+
+# GAME LOOP
 while True:
     events = pygame.event.get();
     screen.fill("black");
@@ -163,11 +198,9 @@ while True:
             exit();
         if(event.type == pygame.KEYDOWN):
             if(event.key == pygame.K_r):
-                matchFinished = False;
-                whoWon = "";
-                for p in paddle.sprites():
-                    p.rect.y = (500 / 2) - 50;
-                    p.score = 0;
+                RestartGame();
+    
+    DrawWireframe();
     scoreText.draw(screen);
     scoreText.sprites()[0].update(paddle.sprites()[1].score);
     scoreText.sprites()[1].update(paddle.sprites()[0].score);
@@ -181,14 +214,7 @@ while True:
     paddle.draw(screen);
     
     if(matchFinished == True):     
-        textSurf = text.render(f"{whoWon} won", False, "white");
-        textRect = textSurf.get_rect(center = (W / 2, H / 2))
-        pygame.draw.rect(screen, "black", (W / 2 - 100, H / 2 - 50, 100, 50));
-        screen.blit(textSurf, textRect);
-
-        RestartSurf = Restarttext.render(f"press R to restart", False, "white");
-        restartRect = textSurf.get_rect(center = (380, 350))
-        screen.blit(RestartSurf, restartRect);
+        MatchEnd();
 
     pygame.display.update();
     clock.tick(FPS);
